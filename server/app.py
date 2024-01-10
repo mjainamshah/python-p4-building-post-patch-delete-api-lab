@@ -21,14 +21,46 @@ def home():
 @app.route('/bakeries')
 def bakeries():
     bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
-    return make_response(  bakeries,   200  )
+    return make_response(jsonify(bakeries), 200)
 
-@app.route('/bakeries/<int:id>')
-def bakery_by_id(id):
+@app.route('/bakeries/<int:id>', methods=['PATCH'])
+def update_bakery(id):
+    bakery = Bakery.query.get(id)
+    if bakery:
+        data = request.form
+        if 'name' in data:
+            bakery.name = data['name']
+            db.session.commit()
+            return make_response(jsonify(bakery.to_dict()), 200)
+        else:
+            return make_response(jsonify({'message': 'Name field is required for update'}), 400)
+    else:
+        return make_response(jsonify({'message': 'Bakery not found'}), 404)
 
-    bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+@app.route('/baked_goods', methods=['POST'])
+def create_baked_good():
+    data = request.form
+    if all(key in data for key in ['name', 'price', 'bakery_id']):
+        new_baked_good = BakedGood(
+            name=data['name'],
+            price=data['price'],
+            bakery_id=data['bakery_id']
+        )
+        db.session.add(new_baked_good)
+        db.session.commit()
+        return make_response(jsonify(new_baked_good.to_dict()), 201)
+    else:
+        return make_response(jsonify({'message': 'Missing required fields for creating a baked good'}), 400)
+
+@app.route('/baked_goods/<int:id>', methods=['DELETE'])
+def delete_baked_good(id):
+    baked_good = BakedGood.query.get(id)
+    if baked_good:
+        db.session.delete(baked_good)
+        db.session.commit()
+        return make_response(jsonify({'message': 'Record successfully deleted'}), 200)
+    else:
+        return make_response(jsonify({'message': 'Baked good not found'}), 404)
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
